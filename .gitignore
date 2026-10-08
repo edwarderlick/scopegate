@@ -1,0 +1,41 @@
+# GenLayer and Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+.pytest_cache/
+pytest_out.txt
+test_out.txt
+
+# Node
+node_modules/
+dist/
+dist-codex/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Project specifics
+deploy_fees.json
+fee-profile.json
+artifacts/
+design_exports/
+scripts/scratch_archive/
+web/scripts/scratch_archive/
+deployed_source*.py
