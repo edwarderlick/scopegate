@@ -62,6 +62,9 @@ The frontend relies on `web/.env.local` for local development. These must also b
 - **Frontend**: `cd web && npm run lint` and `npm run build`
 - **Contract Tests**: `python -m pytest tests/direct -v` (requires active `.venv`)
 
+*Note on `genvm-lint` Validation:*
+The `contracts/scopegate.py` source deployed to Studio-dev correctly pins `py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng`. Because `genvm-linter` dynamically fetches the latest `genvm-universal.tar.xz` bundle which no longer includes this exact historical runner archive, running `genvm-lint check contracts/scopegate.py` locally currently passes syntax linting (✅) but fails SDK validation due to the missing `.tar` archive. We do not modify the contract's `Depends` hash to falsely pass local validation, as preserving the exact deployed hash is critical for verifiable on-chain proofs.
+
 ### Deployment Steps
 1. **Contract Deployment**: Start the local frontend (`npm run dev`), navigate to `http://127.0.0.1:5173/deploy.html`, connect a funded Studio-dev wallet, and select `contracts/scopegate.py` to deploy. Copy the finalized address into your environment variables.
 2. **Frontend Deployment**: Connect your GitHub repository to Vercel. Ensure `web/` is set as the root, and configure `VITE_SCOPEGATE_CONTRACT_ADDRESS` in Vercel's Environment Variables panel.
@@ -74,7 +77,8 @@ ScopeGate has been thoroughly verified through both automated testing and live o
 | :--- | :---: | :---: |
 | **Supported Claim → ALLOW + Publish** | ✅ Verified | ✅ Verified |
 | **Unsupported Claim → DENY** | ✅ Verified | ✅ Verified |
-| **Publication Cap (Cannot reuse permit)** | ✅ Verified | ✅ Verified |
+| **Single-use Permit Replay Prevention** | ✅ Verified | ✅ Verified |
+| **Publication Cap Enforcement** | ✅ Verified | ✅ Verified |
 | **Policy Change → Permit Invalidation** | ✅ Verified | ✅ Verified |
 | **Agent Revocation → Permit Invalidation** | ✅ Verified | ✅ Verified |
 
