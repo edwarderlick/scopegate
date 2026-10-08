@@ -9,7 +9,7 @@ The latest validated live deployment was successfully tested on the GenLayer Stu
 - **Network**: Studio-dev (Chain ID: `61997`)
 - **Verified Contract**: [`0xFC01902E04e1d1A052A1bD45Eac65032F46dA10E`](https://explorer-studio-dev.genlayer.com/contracts/0xFC01902E04e1d1A052A1bD45Eac65032F46dA10E)
 - **Deployment Transaction**: [`0x1d3b3929e45713cd9f596fae59b303097b6bccd45f149a804a18b521d56b3dcc`](https://explorer-studio-dev.genlayer.com/transactions/0x1d3b3929e45713cd9f596fae59b303097b6bccd45f149a804a18b521d56b3dcc)
-- **Verification Note**: The deployed source on GenLayer matches the local `contracts/scopegate.py` code *when normalized for line endings*. Specifically, Windows checkouts use CRLF while the on-chain deployment hashes LF. A line-ending normalization pass makes the hashes identical, verifying the exact logic was deployed.
+- **Verification Note**: The deployed source's recorded raw hash is `9285210c4ebb957b5b4de47f767bf73d18f409d8303c153e87e414b45ee5338d` (CRLF), while the GitHub LF source hashes to `e657f450d01156cd2c20b3e02386dbfcbd128aa24638243f3c311f8fe71e456f`. A line-ending normalization pass makes the contents and hashes identical, verifying the exact logic was deployed.
 
 ## Test Matrix
 
@@ -17,7 +17,7 @@ The latest validated live deployment was successfully tested on the GenLayer Stu
 | :--- | :---: | :---: |
 | **Supported Claim → ALLOW + Publish** | ✅ Verified | ✅ Verified |
 | **Unsupported Claim → DENY** | ✅ Verified | ✅ Verified |
-| **Single-use Permit Replay Prevention** | ✅ Verified | ✅ Verified |
+| **Single-use Permit Replay Prevention** | ✅ Verified | ⏳ Pending |
 | **Publication Cap Enforcement** | ✅ Verified | ✅ Verified |
 | **Policy Change → Permit Invalidation** | ✅ Verified | ✅ Verified |
 | **Agent Revocation → Permit Invalidation** | ✅ Verified | ✅ Verified |
@@ -75,11 +75,11 @@ A workspace owner updates the workspace policy while an agent holds a `READY` pe
 
 - **Expected Result**: Outstanding `READY` permits for the old policy become `INVALIDATED` dynamically.
 - **Observed Result**: 
-  - Upon updating the policy version, the permit correctly updated to `INVALIDATED` with the reason "Policy version mismatch." 
-  - *Note (Chronology)*: This original invalidation was verified via manual observation in the UI immediately after the policy change. Because the agent was subsequently revoked during later testing, checking this permit on-chain today will return the superseding "Agent authorization was revoked" reason, as the contract evaluates agent revocation before policy mismatch.
+  - Upon updating the policy version, the permit correctly updated to `INVALIDATED` with the reason "Policy version changed after permit issuance." 
+  - *Note (Chronology)*: This original invalidation was verified via a historical UI observation immediately after the policy change. Because the agent was subsequently revoked during later testing, checking this permit on-chain today will return the superseding "Agent authorization was revoked" reason, as the contract evaluates agent revocation before policy mismatch.
 - **Relevant Records**:
   - Permit ID: `permit_request_ff4658e50c8a4b5b03e574d6cef5cd2338e5a82dd302b05688af39e63f101c74`
-  - Historical Status (Manual Observation): `INVALIDATED` due to Policy Mismatch.
+  - Historical Status (Manual Observation): `INVALIDATED` due to "Policy version changed after permit issuance."
   - Current Status: `INVALIDATED` due to Agent Revocation.
 
 ### 6. Agent Revocation
