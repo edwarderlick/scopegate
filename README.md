@@ -74,8 +74,8 @@ ScopeGate has been thoroughly verified through both automated testing and live o
 | :--- | :---: | :---: |
 | **Supported Claim → ALLOW + Publish** | ✅ Verified | ✅ Verified |
 | **Unsupported Claim → DENY** | ✅ Verified | ✅ Verified |
-| **Publication Cap (Cannot reuse permit)** | ✅ Verified | ⏳ Pending |
-| **Policy Change → Permit Invalidation** | ✅ Verified | ⏳ Pending |
-| **Agent Revocation → Permit Invalidation** | ✅ Verified | ⏳ Pending |
+| **Publication Cap (Cannot reuse permit)** | ✅ Verified | ✅ Verified |
+| **Policy Change → Permit Invalidation** | ✅ Verified | ✅ Verified |
+| **Agent Revocation → Permit Invalidation** | ✅ Verified | ✅ Verified |
 
 **[View Detailed Evidence & Verification Links in `docs/EVIDENCE.md`](docs/EVIDENCE.md)**

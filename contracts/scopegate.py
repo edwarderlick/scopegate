@@ -2,7 +2,11 @@
 
 from genlayer import *
 import genlayer as gl
-from genlayer.storage import allow as allow_storage
+# Fallback for local gltest environment (genlayer-test 0.19.2) which lacks allow_storage mock
+try:
+    from genlayer.storage import allow as allow_storage
+except ImportError:
+    def allow_storage(cls): return cls
 from datetime import datetime, timezone
 import json
 
