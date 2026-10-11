@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createClient, isSuccessful } from 'genlayer-js';
 import { studioDevnet } from 'genlayer-js/chains';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -45,13 +45,38 @@ async function main() {
   }
   console.log('✓ Contract source verified and matches expected SHA-256.');
 
-  // 2. Load deployer account from local OS keychain
-  const keytarMod = await import('file:///C:/Users/samir/AppData/Roaming/npm/node_modules/genlayer/node_modules/keytar/lib/keytar.js');
-  const keytar = keytarMod.default ?? keytarMod;
+  // 2. Load deployer account: support DEPLOYER_PRIVATE_KEY env var, then resolve local OS keychain dynamically
+  let rawKey = process.env.DEPLOYER_PRIVATE_KEY || process.env.PRIVATE_KEY;
   const accountName = 'coverlock-submitter';
-  const rawKey = await keytar.getPassword('genlayer-cli', `account:${accountName}`);
+
   if (!rawKey) {
-    throw new Error(`Failed to retrieve unlocked key for account ${accountName} from OS keychain.`);
+    const candidatePaths = [
+      'keytar',
+      process.env.APPDATA ? path.join(process.env.APPDATA, 'npm/node_modules/genlayer/node_modules/keytar/lib/keytar.js') : null,
+      process.env.HOME ? path.join(process.env.HOME, '.config/genlayer/node_modules/keytar/lib/keytar.js') : null,
+    ].filter(Boolean) as string[];
+
+    let keytar: any = null;
+    for (const cand of candidatePaths) {
+      try {
+        if (cand !== 'keytar' && !fs.existsSync(cand)) continue;
+        const mod = await import(cand === 'keytar' ? 'keytar' : pathToFileURL(cand).href);
+        keytar = mod.default ?? mod;
+        if (keytar && typeof keytar.getPassword === 'function') break;
+      } catch {
+        // try next candidate
+      }
+    }
+
+    if (keytar) {
+      rawKey = await keytar.getPassword('genlayer-cli', `account:${accountName}`);
+    }
+  }
+
+  if (!rawKey) {
+    throw new Error(
+      `Deployer private key not found. Provide DEPLOYER_PRIVATE_KEY environment variable or configure '${accountName}' in the local GenLayer CLI keychain.`
+    );
   }
 
   const account = privateKeyToAccount(rawKey);

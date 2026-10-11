@@ -45,7 +45,139 @@ def _inject_message_to_fd0_pipe(vm):
 
 loader._inject_message_to_fd0 = _inject_message_to_fd0_pipe
 
+# Pin compatible genvm runner release version to guarantee fresh-environment reproducibility
+import gltest.direct.sdk_loader as sdk_loader
+import subprocess
+import shutil
+import re
+import urllib.request
+import tempfile
+from pathlib import Path
+
+COMPATIBLE_SDK_VERSION = os.environ.get("GLTEST_SDK_VERSION", "v0.6.0-rc8")
+GENVM_MANAGER_URL = "https://github.com/genlayerlabs/genvm-manager/releases"
+
+_orig_download_artifacts = sdk_loader.download_artifacts
+
+def custom_download_artifacts(version: str) -> Path:
+    sdk_loader.CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    tarball_name = f"genvm-universal-{version}.tar.xz"
+    tarball_path = sdk_loader.CACHE_DIR / tarball_name
+
+    if tarball_path.exists():
+        return tarball_path
+
+    manager_url = f"{GENVM_MANAGER_URL}/download/{version}/genvm-universal.tar.xz"
+    try:
+        req = urllib.request.Request(manager_url, headers={"User-Agent": "gltest-direct"})
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            with tempfile.NamedTemporaryFile(delete=False, dir=sdk_loader.CACHE_DIR) as tmp:
+                while True:
+                    chunk = resp.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    tmp.write(chunk)
+                tmp_path = tmp.name
+        os.replace(tmp_path, tarball_path)
+        return tarball_path
+    except Exception:
+        return _orig_download_artifacts(version)
+
+sdk_loader.download_artifacts = custom_download_artifacts
+
+_orig_setup_sdk_paths = sdk_loader.setup_sdk_paths
+_orig_extract_runner = sdk_loader.extract_runner
+
+def custom_extract_runner(
+    tarball_path: Path,
+    runner_type: str,
+    runner_hash: str | None = None,
+    version: str | None = None,
+) -> Path:
+    if version is None:
+        match = re.search(r"genvm-universal-(.+)\.tar\.xz", tarball_path.name)
+        version = match.group(1) if match else "unknown"
+
+    extract_base = sdk_loader.CACHE_DIR / "extracted" / version / runner_type
+
+    if runner_hash and runner_hash.lower() != "latest":
+        extract_dir = extract_base / runner_hash
+        if extract_dir.exists():
+            return extract_dir
+
+        extract_dir.mkdir(parents=True, exist_ok=True)
+        tar_cmd = shutil.which("tar") or shutil.which("tar.exe") or "tar"
+        for ext in (".zip", ".tar"):
+            inner_name = f"runners/{runner_type}/{runner_hash[:2]}/{runner_hash[2:]}{ext}"
+            temp_dir = extract_dir / "_temp_extract"
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                res = subprocess.run(
+                    [tar_cmd, "-xf", str(tarball_path), "-C", str(temp_dir), inner_name],
+                    capture_output=True,
+                )
+                extracted_archive = temp_dir / inner_name
+                if res.returncode == 0 and extracted_archive.exists():
+                    if ext == ".zip":
+                        import zipfile
+                        with zipfile.ZipFile(extracted_archive, "r") as zf:
+                            zf.extractall(extract_dir)
+                    else:
+                        subprocess.run(
+                            [tar_cmd, "-xf", str(extracted_archive), "-C", str(extract_dir)],
+                            capture_output=True,
+                        )
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+                    return extract_dir
+            except Exception:
+                pass
+            finally:
+                if temp_dir.exists():
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+
+    return _orig_extract_runner(tarball_path, runner_type, runner_hash, version)
+
+def custom_setup_sdk_paths(contract_path=None, version=None):
+    if version is None:
+        version = COMPATIBLE_SDK_VERSION
+    return _orig_setup_sdk_paths(contract_path, version=version)
+
+sdk_loader.extract_runner = custom_extract_runner
+sdk_loader.setup_sdk_paths = custom_setup_sdk_paths
+
 import pytest
+
+@pytest.fixture
+def direct_deploy(direct_vm):
+    from gltest.direct.loader import deploy_contract
+    from pathlib import Path
+
+    def _deploy(
+        contract_path: str,
+        *args,
+        sdk_version: str | None = None,
+        **kwargs,
+    ):
+        if sdk_version is None:
+            sdk_version = COMPATIBLE_SDK_VERSION
+        path = Path(contract_path)
+        if not path.is_absolute():
+            if path.exists():
+                path = path.resolve()
+            else:
+                for base in [
+                    Path.cwd(),
+                    Path.cwd() / "contracts",
+                    Path.cwd() / "intelligent-contracts",
+                ]:
+                    candidate = base / contract_path
+                    if candidate.exists():
+                        path = candidate.resolve()
+                        break
+        return deploy_contract(path, direct_vm, *args, sdk_version=sdk_version, **kwargs)
+
+    return _deploy
+
 @pytest.fixture(autouse=True)
 def print_contract_attrs():
     yield
