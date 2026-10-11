@@ -14,6 +14,11 @@ The latest validated live deployment was successfully compiled, tested, deployed
 - **Deployed Source Hash (Raw SHA-256)**: `beb4652cc49a5f6888b7801c397983223f3caaca73c3844f94c3c34b59bd2e22`
 - **Verification Note**: Bytecode read back from Studio-dev matches the exact tested `contracts/scopegate.py` source (SHA-256 `beb4652cc49a5f6888b7801c397983223f3caaca73c3844f94c3c34b59bd2e22`). The contract incorporates the steward fix requiring independent validator evaluation of mandate and all conditions (`MANDATE`, `R1..Rn`), requiring 1:1 condition matching and strict excerpt provenance.
 
+### Deployment Tooling & Keychain Requirement
+- **Deployment Script**: Committed at [`web/scripts/deploy_scopegate.ts`](file:///d:/scopegate/web/scripts/deploy_scopegate.ts) (runnable via `cd web && npx tsx scripts/deploy_scopegate.ts` or `npm run deploy:contract`).
+- **Source Validator**: Committed at [`web/src/deploy_source_validator.ts`](file:///d:/scopegate/web/src/deploy_source_validator.ts) (mirrored at [`scripts/deploy_source_validator.ts`](file:///d:/scopegate/scripts/deploy_source_validator.ts)), validating `class ScopeGate(gl.contract.Contract)` declarations ahead of submission. Exercised by repository test [`web/src/deploy_selection.test.ts`](file:///d:/scopegate/web/src/deploy_selection.test.ts) (`npm test`).
+- **Machine-Specific Keychain Requirement**: `deploy_scopegate.ts` dynamically loads the deployer signer from the local GenLayer CLI OS keychain (`genlayer-cli` account service via `keytar`). This completely avoids hardcoded private keys or committing plaintext credentials, but requires the host machine to have the account configured in GenLayer CLI (`genlayer init` / `genlayer account`). For environments without this OS keychain entry, an unlocked private key account can be provided to `createClient({ chain: studioDevnet, account: privateKeyToAccount(...) })`.
+
 ### Historical Initial Deployment
 - **Network**: Studio-dev (Chain ID: `61997`)
 - **Historical Contract**: [`0xFC01902E04e1d1A052A1bD45Eac65032F46dA10E`](https://explorer-studio-dev.genlayer.com/contracts/0xFC01902E04e1d1A052A1bD45Eac65032F46dA10E)
@@ -27,10 +32,10 @@ The latest validated live deployment was successfully compiled, tested, deployed
 | :--- | :---: | :---: |
 | **Supported Claim → ALLOW + Publish** | ✅ Verified (31 tests pass) | ✅ Verified (`0xbE99F44aC...`) |
 | **Unsupported Claim → DENY** | ✅ Verified | ✅ Verified (`0xbE99F44aC...`) |
-| **Single-use Permit Replay Prevention** | ✅ Verified | ✅ Verified (`0xbE99F44aC...`) |
-| **Publication Cap Enforcement** | ✅ Verified | ✅ Verified |
-| **Policy Change → Permit Invalidation** | ✅ Verified | ✅ Verified |
-| **Agent Revocation → Permit Invalidation** | ✅ Verified | ✅ Verified |
+| **Single-use Permit Replay Prevention** | ✅ Verified | ⏳ Pending (Verified in direct tests; live replay-attempt tx pending) |
+| **Publication Cap Enforcement** | ✅ Verified | ✅ Verified (Historical contract `0xFC01902E...`) |
+| **Policy Change → Permit Invalidation** | ✅ Verified | ✅ Verified (Historical contract `0xFC01902E...`) |
+| **Agent Revocation → Permit Invalidation** | ✅ Verified | ✅ Verified (Historical contract `0xFC01902E...`) |
 
 ---
 
@@ -84,7 +89,8 @@ The authorized agent submitted an action request that violates rules and contrad
 
 ## Historical On-Chain Flow Evidence (Contract `0xFC01902E04e1d1A052A1bD45Eac65032F46dA10E`)
 
-The following scenarios are documented for historical continuity from the original contract deployment:
+> [!NOTE]
+> The scenarios below were executed and recorded on the historical initial deployment contract ([`0xFC01902E04e1d1A052A1bD45Eac65032F46dA10E`](https://explorer-studio-dev.genlayer.com/contracts/0xFC01902E04e1d1A052A1bD45Eac65032F46dA10E)). In particular, publication cap enforcement, policy change invalidation, and agent revocation are historical tests and were not re-executed on `0xbE99F44aC242D5B205060006503bE713e08F3b65`.
 
 ### Historical 1: Supported Claim → ALLOW and Publish
 - Tested Message: `"The beta supports CSV export."`
@@ -98,15 +104,18 @@ The following scenarios are documented for historical continuity from the origin
 - Evaluation Transaction: [`0x813412d2e9480a56e2f05f71395331336e1860720e12e1c4eb32f8206d44ef74`](https://explorer-studio-dev.genlayer.com/transactions/0x813412d2e9480a56e2f05f71395331336e1860720e12e1c4eb32f8206d44ef74)
 
 ### Historical 3: Publication Cap Enforcement
+- Tested Scenario: Agent reached its publication cap; subsequent requests cannot be published.
 - Permit ID: `permit_request_f3eaab8f4cbee51c50caf310eafa3267180b31dc3b15d43f9866ac6e07bf1aaf`
 - Status: `INVALIDATED`
 - Reason: `"Publication cap has been reached."`
 
 ### Historical 4: Policy Change Invalidation
+- Tested Scenario: Workspace owner activated a new policy version while an agent held a `READY` permit.
 - Permit ID: `permit_request_ff4658e50c8a4b5b03e574d6cef5cd2338e5a82dd302b05688af39e63f101c74`
 - Status: `INVALIDATED` due to policy version update after issuance.
 
 ### Historical 5: Agent Revocation
+- Tested Scenario: Workspace owner revoked the agent's authorization while an agent held a `READY` permit.
 - Permit ID: `permit_request_545ee1a52b61fe1421c46c2c9aff38408424a57aefe736b71c35a2f280f36ad4`
 - Status: `INVALIDATED`
 - Reason: `"Agent authorization was revoked."`

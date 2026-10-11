@@ -68,20 +68,21 @@ The frontend relies on `web/.env.local` for local development. These can also be
 The `contracts/scopegate.py` source deployed to Studio-dev correctly pins `py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng`. Because `genvm-linter` dynamically fetches the latest `genvm-universal.tar.xz` bundle which no longer includes this exact historical runner archive, running `genvm-lint check contracts/scopegate.py` locally currently passes syntax linting (✅) but fails SDK validation due to the missing `.tar` archive. We do not modify the contract's `Depends` hash to falsely pass local validation, as preserving the exact deployed hash is critical for verifiable on-chain proofs.
 
 ### Deployment Steps
-1. **Contract Deployment**: Deploy `contracts/scopegate.py` using the verified local GenLayer deployment script (`npx tsx scripts/deploy_scopegate.ts`). Source code validation is performed ahead of submission against the official `gl.contract.Contract` specification via `scripts/deploy_source_validator.ts`. The public app does not expose any deployment page.
-2. **Frontend Deployment**: Connect your GitHub repository to Vercel. Ensure `web/` is set as the root, and configure `VITE_SCOPEGATE_CONTRACT_ADDRESS` (or rely on the production default `0xbE99F44aC242D5B205060006503bE713e08F3b65`).
+1. **Contract Deployment**: Deploy `contracts/scopegate.py` using the verified local deployment script (`web/scripts/deploy_scopegate.ts` or `cd web && npm run deploy:contract`). Source code validation is performed ahead of submission against the official `gl.contract.Contract` specification via `web/src/deploy_source_validator.ts` (mirrored at `scripts/deploy_source_validator.ts`). The public app does not expose any deployment page.
+   - *Keychain Requirement*: `deploy_scopegate.ts` loads the deployer account (`coverlock-submitter`) from the local GenLayer CLI OS keychain (`genlayer-cli` service via `keytar`). This avoids hardcoding private keys or committing secrets, but requires that the local machine has the account configured in GenLayer CLI (`genlayer init`/`genlayer account`). For machines without that entry, an unlocked private key account can be provided to `createClient`.
+2. **Frontend Deployment**: Connect your GitHub repository to Vercel. Ensure `web/` is set as the root, and configure `VITE_SCOPEGATE_CONTRACT_ADDRESS` (or rely on the production default `0xbE99F44aC242D5B205060006503bE713e08F3b65` configured in `web/.env.production` and `web/vercel.json`).
 
 ## On-Chain Evidence
 
-ScopeGate has been thoroughly verified through both automated testing and live on-chain execution on GenLayer Studio-dev.
+ScopeGate has been thoroughly verified through automated testing and live on-chain execution on GenLayer Studio-dev.
 
 | Flow | Automated Test | Manual On-Chain |
 | :--- | :---: | :---: |
-| **Supported Claim → ALLOW + Publish** | ✅ Verified | ✅ Verified |
-| **Unsupported Claim → DENY** | ✅ Verified | ✅ Verified |
-| **Single-use Permit Replay Prevention** | ✅ Verified | ✅ Verified |
-| **Publication Cap Enforcement** | ✅ Verified | ✅ Verified |
-| **Policy Change → Permit Invalidation** | ✅ Verified | ✅ Verified |
-| **Agent Revocation → Permit Invalidation** | ✅ Verified | ✅ Verified |
+| **Supported Claim → ALLOW + Publish** | ✅ Verified | ✅ Verified (`0xbE99F44aC...`) |
+| **Unsupported Claim → DENY** | ✅ Verified | ✅ Verified (`0xbE99F44aC...`) |
+| **Single-use Permit Replay Prevention** | ✅ Verified | ⏳ Pending (Verified in direct tests; live replay-attempt tx pending) |
+| **Publication Cap Enforcement** | ✅ Verified | ✅ Verified (Historical contract `0xFC01902E...`) |
+| **Policy Change → Permit Invalidation** | ✅ Verified | ✅ Verified (Historical contract `0xFC01902E...`) |
+| **Agent Revocation → Permit Invalidation** | ✅ Verified | ✅ Verified (Historical contract `0xFC01902E...`) |
 
 **[View Detailed Evidence & Verification Links in `docs/EVIDENCE.md`](docs/EVIDENCE.md)**
