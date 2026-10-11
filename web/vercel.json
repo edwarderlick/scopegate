@@ -1,3 +1,11 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/" }]
+  "rewrites": [{ "source": "/(.*)", "destination": "/" }],
+  "env": {
+    "VITE_SCOPEGATE_CONTRACT_ADDRESS": "0xbE99F44aC242D5B205060006503bE713e08F3b65"
+  },
+  "build": {
+    "env": {
+      "VITE_SCOPEGATE_CONTRACT_ADDRESS": "0xbE99F44aC242D5B205060006503bE713e08F3b65"
+    }
+  }
 }

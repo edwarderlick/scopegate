@@ -10,7 +10,7 @@
 - Pinned `genlayer-js@2.0.0-rc.1`.
 - Pinned `genlayer-test==0.19.2`, `genvm-linter==0.11.0`, and `pytest==8.3.4`.
 - Added `gltest.config.yaml`, `requirements.txt`, and `fee-profile.json`.
-- Added browser-wallet deployment page at `web/deploy.html`.
+- Added contract source validator at `scripts/deploy_source_validator.ts` and local deployment script at `web/scripts/deploy_scopegate.ts`.
 
 ## Contract Surface
 
@@ -59,17 +59,15 @@ The live adapter:
 - `.\.venv\Scripts\python.exe -m pytest tests\integration -v`: 1 skipped because `SCOPEGATE_DEPLOYED_ADDRESS` is not set.
 
 ## Deployment
-
-No real Studio-dev deployment was performed in this repair pass. Blockers:
-
-- No deployment signer/private key/account environment variable was present.
-- Browser-wallet confirmation is required for the prepared wallet deployment page.
-
-## Remaining Work
-
-- Start the Vite dev server and open `/deploy.html`.
-- Connect a funded Studio-dev wallet.
-- Select `contracts/scopegate.py` and deploy.
-- Save real deployment address and transactions.
-- Set `VITE_SCOPEGATE_CONTRACT_ADDRESS`.
-- Run live owner/agent workflow and record receipts in `docs/EVIDENCE.md`.
+ 
+Successfully deployed and verified on GenLayer Studio-dev:
+ 
+- Active Contract: `0xbE99F44aC242D5B205060006503bE713e08F3b65`
+- Deployment Transaction: `0x42d220327d653985b2ef0a027fc5c60cea1cbbdb3a8e374e5dbb34d95506c075`
+- Deployer / Owner Account: `0x9CE8B4b8A355421f01779Ebd0c49e22A8F1FF0DD` (`coverlock-submitter`)
+- Tested Raw Source SHA-256: `beb4652cc49a5f6888b7801c397983223f3caaca73c3844f94c3c34b59bd2e22`
+- Chain Bytecode Readback: Verified matching exact tested source bytes.
+- Tested Flows:
+  - Supported Claim: ALLOW consensus, permit READY, post published, permit USED.
+  - Unsupported/Prohibited Claim: DENY consensus, permit empty (no issuance).
+  - Test evidence recorded in `docs/EVIDENCE.md`.

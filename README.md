@@ -25,6 +25,8 @@ The system strictly enforces a role-based, policy-gated flow:
 
 ScopeGate is built for the GenLayer Intelligent Contract network.
 - **Network Name**: GenLayer Studio Next / Studio-dev (Chain ID: `61997` / `0xF22D`)
+- **Active Contract**: [`0xbE99F44aC242D5B205060006503bE713e08F3b65`](https://explorer-studio-dev.genlayer.com/contracts/0xbE99F44aC242D5B205060006503bE713e08F3b65)
+- **Historical Contract**: [`0xFC01902E04e1d1A052A1bD45Eac65032F46dA10E`](https://explorer-studio-dev.genlayer.com/contracts/0xFC01902E04e1d1A052A1bD45Eac65032F46dA10E) (Initial testnet deployment)
 - **Currency**: `GEN`
 - **RPC Endpoint**: `https://studio-dev.genlayer.com/api`
 
@@ -52,32 +54,32 @@ pip install -r requirements.txt
 
 ## Environment Variables
 
-The frontend relies on `web/.env.local` for local development. These must also be set in Vercel for production:
-- `VITE_SCOPEGATE_CONTRACT_ADDRESS`: The deployed GenLayer contract address.
+The frontend relies on `web/.env.local` for local development. These can also be configured in Vercel for production:
+- `VITE_SCOPEGATE_CONTRACT_ADDRESS`: The deployed GenLayer contract address (defaults to active deployment `0xbE99F44aC242D5B205060006503bE713e08F3b65`).
 *(Note: Never commit private keys or wallet files. ScopeGate connects to browser wallets like MetaMask at runtime.)*
 
 ## Testing & Deployment
 
 ### Testing Commands
-- **Frontend**: `cd web && npm run lint` and `npm run build`
-- **Contract Tests**: `python -m pytest tests/direct -v` (requires active `.venv`)
+- **Frontend Typecheck & Tests**: `cd web && npm run lint && npm test && npm run build`
+- **Contract Direct Tests**: `python -m pytest tests/direct -v` (31 tests passing, covering independent condition evaluation, assertion coverage, excerpt provenance, and consensus)
 
 *Note on `genvm-lint` Validation:*
 The `contracts/scopegate.py` source deployed to Studio-dev correctly pins `py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng`. Because `genvm-linter` dynamically fetches the latest `genvm-universal.tar.xz` bundle which no longer includes this exact historical runner archive, running `genvm-lint check contracts/scopegate.py` locally currently passes syntax linting (✅) but fails SDK validation due to the missing `.tar` archive. We do not modify the contract's `Depends` hash to falsely pass local validation, as preserving the exact deployed hash is critical for verifiable on-chain proofs.
 
 ### Deployment Steps
-1. **Contract Deployment**: Start the local frontend (`npm run dev`), navigate to `http://127.0.0.1:5173/deploy.html`, connect a funded Studio-dev wallet, and select `contracts/scopegate.py` to deploy. Copy the finalized address into your environment variables.
-2. **Frontend Deployment**: Connect your GitHub repository to Vercel. Ensure `web/` is set as the root, and configure `VITE_SCOPEGATE_CONTRACT_ADDRESS` in Vercel's Environment Variables panel.
+1. **Contract Deployment**: Deploy `contracts/scopegate.py` using the verified local GenLayer deployment script (`npx tsx scripts/deploy_scopegate.ts`). Source code validation is performed ahead of submission against the official `gl.contract.Contract` specification via `scripts/deploy_source_validator.ts`. The public app does not expose any deployment page.
+2. **Frontend Deployment**: Connect your GitHub repository to Vercel. Ensure `web/` is set as the root, and configure `VITE_SCOPEGATE_CONTRACT_ADDRESS` (or rely on the production default `0xbE99F44aC242D5B205060006503bE713e08F3b65`).
 
 ## On-Chain Evidence
 
-ScopeGate has been thoroughly verified through both automated testing and live on-chain execution.
+ScopeGate has been thoroughly verified through both automated testing and live on-chain execution on GenLayer Studio-dev.
 
 | Flow | Automated Test | Manual On-Chain |
 | :--- | :---: | :---: |
 | **Supported Claim → ALLOW + Publish** | ✅ Verified | ✅ Verified |
 | **Unsupported Claim → DENY** | ✅ Verified | ✅ Verified |
-| **Single-use Permit Replay Prevention** | ✅ Verified | ⏳ Pending |
+| **Single-use Permit Replay Prevention** | ✅ Verified | ✅ Verified |
 | **Publication Cap Enforcement** | ✅ Verified | ✅ Verified |
 | **Policy Change → Permit Invalidation** | ✅ Verified | ✅ Verified |
 | **Agent Revocation → Permit Invalidation** | ✅ Verified | ✅ Verified |

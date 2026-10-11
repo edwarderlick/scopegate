@@ -49,7 +49,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<AppMode>(() => (localStorage.getItem('scopegate-mode') as AppMode) || 'demo');
   const [wallet, setWalletState] = useState<WalletState>({ isRestoring: !!localStorage.getItem('scopegate-wallet-id') });
   const [txState, setTxState] = useState<TxState>({ status: 'idle' });
-  const liveDeploymentAddress = import.meta.env.VITE_SCOPEGATE_CONTRACT_ADDRESS as string | undefined;
+  const DEFAULT_CONTRACT_ADDRESS = '0xbE99F44aC242D5B205060006503bE713e08F3b65';
+  const liveDeploymentAddress = (import.meta.env.VITE_SCOPEGATE_CONTRACT_ADDRESS as string | undefined) || DEFAULT_CONTRACT_ADDRESS;
   const adapter = useMemo<DataAdapter>(
     () => (mode === 'live' ? new LiveAdapter(() => wallet, () => liveDeploymentAddress, setTxState) : new DemoAdapter()),
     [mode, wallet, liveDeploymentAddress],

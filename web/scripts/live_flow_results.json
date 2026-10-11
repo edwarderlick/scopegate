@@ -1,0 +1,27 @@
+{
+  "contractAddress": "0xbE99F44aC242D5B205060006503bE713e08F3b65",
+  "deployTxHash": "0x42d220327d653985b2ef0a027fc5c60cea1cbbdb3a8e374e5dbb34d95506c075",
+  "deployer": "0x9CE8B4b8A355421f01779Ebd0c49e22A8F1FF0DD",
+  "timestamp": "2026-10-11T05:55:32.842Z",
+  "workspaceId": "workspace_97ea8d573023b83f9eb15873725e50fa4192f870703a4f5aabf99e54ff16d2cc",
+  "createWorkspaceTx": "0x41764b43247a26b6edb7bd3465d0ae38e204161607b7f5b42f8dd215d95a8c8a",
+  "agentId": "agent_55fa7ac7c96929d629113691a3661724edb684e2a7e11d8d5af9241c98e3fffb",
+  "authorizeAgentTx": "0x9c8d0926842ff0fc0208b210fc7d7e30600321febe4fc09cba91fe69aefd0151",
+  "allowRequestId": "request_8b376b7e3a853d1cf802e4c2c117f65bd5a22ec31b9294584b744d13bcbce493",
+  "submitAllowTx": "0x7a2d46be065daa1e44261dfb1398c8904356d3817d7e295678ab58a9d375014d",
+  "evalAllowTx": "0x5a46987e1f4142cd904c4d9b00a04f27212361506fd2a8c2c02965ad139d4e2c",
+  "allowEvaluationStatus": "ALLOW",
+  "permitId": "permit_request_8b376b7e3a853d1cf802e4c2c117f65bd5a22ec31b9294584b744d13bcbce493",
+  "permitStatus": "READY",
+  "publishTx": "0x1ac8071cc41a3d6a51a22b2964b0867b503f439b1aa29652bb6511550399a9ef",
+  "postId": "post_request_8b376b7e3a853d1cf802e4c2c117f65bd5a22ec31b9294584b744d13bcbce493",
+  "permitAfterPublishStatus": "USED",
+  "submitDenyTx": "0xa7525488e07f33052d7a5f671cbd7245a6b7f4290213d4f31ad63d054b6f506d",
+  "denyRequestId": "request_d2620a2a649498c42847d3a3441b52d55bc8c24f42cbc3ef72eb1d564a8c30aa",
+  "evalDenyTx": "0x821bfe04e3cb82720f3c13730111bb33341032623100ff26602579f53674c920",
+  "denyEvaluationStatus": "DENY",
+  "denyEvaluationSummary": "The message violates the mandate and rules by claiming support for unsupported formats and prohibited features.",
+  "denyEvaluationFindings": [
+    "{\"assertions\": [{\"explanation\": \"The factbook explicitly states XML export is not supported.\", \"source_excerpt\": \"XML export is not supported.\", \"support\": \"UNSUPPORTED\", \"text\": \"The beta supports XML export\"}, {\"explanation\": \"The factbook states database access is restricted, contradicting the message.\", \"source_excerpt\": \"Database access is restricted.\", \"support\": \"UNSUPPORTED\", \"text\": \"and direct database access.\"}], \"conditions\": [{\"explanation\": \"The message includes claims about unsupported formats (XML) and non-export features (direct database access), violating the mandate for factual updates about supported export formats.\", \"id\": \"MANDATE\", \"message_excerpt\": \"The beta supports XML export and direct database access.\", \"source_excerpt\": \"Only factual updates about the project supported export formats are allowed.\", \"status\": \"VIOLATED\"}, {\"explanation\": \"The message explicitly claims support for XML, which is an unsupported format per the rules.\", \"id\": \"R1\", \"message_excerpt\": \"The beta supports XML export\", \"source_excerpt\": \"Do not claim support for unsupported formats like XML.\", \"status\": \"VIOLATED\"}, {\"explanation\": \"The message claims direct database access, which is prohibited by the rules.\", \"id\": \"R2\", \"message_excerpt\": \"and direct database access.\", \"source_excerpt\": \"Do not claim direct database access.\", \"status\": \"VIOLATED\"}], \"summary\": \"The message violates the mandate and rules by claiming support for unsupported formats and prohibited features.\"}"
+  ]
+}

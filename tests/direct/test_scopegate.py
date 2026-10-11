@@ -101,6 +101,7 @@ def omitted_mobile_launch_response():
 def validator_verdict(response):
     return {
         "valid": True,
+        "conditions": response.get("conditions", []),
         "assertions": response.get("assertions", []),
         "coverage_explanation": "Validator assertion coverage matches the leader.",
     }
@@ -109,8 +110,8 @@ def validator_verdict(response):
 def mock_eval(direct_vm, response, verdict=None):
     if verdict is None:
         verdict = validator_verdict(response)
-    direct_vm.mock_llm(r"(?s).*Leader JSON.*", json.dumps(verdict))
-    direct_vm.mock_llm(r"(?s)^(?!.*Leader JSON).*Return JSON only.*", json.dumps(response))
+    direct_vm.mock_llm(r"(?s).*(independent validator|Leader JSON).*", json.dumps(verdict))
+    direct_vm.mock_llm(r"(?s)^(?!.*(independent validator|Leader JSON)).*Return JSON only.*", json.dumps(response))
 
 
 def test_owner_agent_flow_and_replay(direct_vm, direct_deploy, direct_owner, direct_alice):
@@ -406,6 +407,12 @@ def test_valid_needs_review_consensus(direct_vm, direct_deploy, direct_owner, di
     
     validator_agrees = {
         "valid": True,
+        "conditions": [
+            {"id": "MANDATE", "status": "SATISFIED", "message_excerpt": "You can export your beta data as a CSV file.", "source_excerpt": "approved public factbook", "explanation": "Policy requires factbook support."},
+            {"id": "R1", "status": "SATISFIED", "message_excerpt": "CSV file", "source_excerpt": "The beta supports CSV export.", "explanation": "CSV export is supported."},
+            {"id": "R2", "status": "SATISFIED", "message_excerpt": "", "source_excerpt": "", "explanation": "No launch date is asserted."},
+            {"id": "R3", "status": "SATISFIED", "message_excerpt": "", "source_excerpt": "", "explanation": "No refund promise is made."},
+        ],
         "assertions": [
             {"text": "You can export your beta data as a CSV file.", "support": "SUPPORTED", "source_excerpt": "The beta supports CSV export.", "explanation": "Factbook supports this."},
             {"text": "It also supports XML.", "support": "UNSUPPORTED", "source_excerpt": "", "explanation": "Factbook doesn't mention XML."}
@@ -650,6 +657,242 @@ def test_generated_prompt_includes_all_rule_ids(direct_vm, direct_deploy, direct
     assert direct_vm.run_validator() == True
     assert evaluation["status"] == "ALLOW"
     assert request["permitId"] != ""
+
+
+def test_regression_false_satisfied_mandate_rejected(direct_vm, direct_deploy, direct_owner, direct_alice):
+    contract = deploy(direct_deploy)
+    workspace_id = create_workspace(contract, direct_vm, direct_owner)
+    agent_id = authorize(contract, direct_vm, direct_owner, workspace_id, direct_alice)
+
+    direct_vm.sender = direct_alice
+    message = "You can export your beta data as a CSV file. Unapproved non-product commentary."
+    request_id = contract.submit_action(workspace_id, agent_id, "request-false-mandate", message)
+
+    leader_false_mandate = {
+        "conditions": [
+            {"id": "MANDATE", "status": "SATISFIED", "message_excerpt": "You can export your beta data as a CSV file.", "source_excerpt": "approved public factbook", "explanation": "Leader falsely marks mandate SATISFIED."},
+            {"id": "R1", "status": "SATISFIED", "message_excerpt": "CSV file", "source_excerpt": "The beta supports CSV export.", "explanation": "CSV export supported."},
+            {"id": "R2", "status": "SATISFIED", "message_excerpt": "", "source_excerpt": "", "explanation": "No launch date."},
+            {"id": "R3", "status": "SATISFIED", "message_excerpt": "", "source_excerpt": "", "explanation": "No refunds."},
+        ],
+        "assertions": [
+            {"text": "You can export your beta data as a CSV file.", "support": "SUPPORTED", "source_excerpt": "The beta supports CSV export.", "explanation": "CSV supported."},
+            {"text": "Unapproved non-product commentary.", "support": "SUPPORTED", "source_excerpt": "The beta supports CSV export.", "explanation": "Fake support."}
+        ],
+        "summary": "Leader incorrectly allows mandate violation.",
+    }
+
+    validator_mandate_violation = {
+        "valid": True,
+        "conditions": [
+            {"id": "MANDATE", "status": "VIOLATED", "message_excerpt": "Unapproved non-product commentary.", "source_excerpt": "approved public factbook", "explanation": "Validator independently finds MANDATE violated."},
+            {"id": "R1", "status": "SATISFIED", "message_excerpt": "CSV file", "source_excerpt": "The beta supports CSV export.", "explanation": "CSV export supported."},
+            {"id": "R2", "status": "SATISFIED", "message_excerpt": "", "source_excerpt": "", "explanation": "No launch date."},
+            {"id": "R3", "status": "SATISFIED", "message_excerpt": "", "source_excerpt": "", "explanation": "No refunds."},
+        ],
+        "assertions": [
+            {"text": "You can export your beta data as a CSV file.", "support": "SUPPORTED", "source_excerpt": "The beta supports CSV export.", "explanation": "CSV supported."},
+            {"text": "Unapproved non-product commentary.", "support": "SUPPORTED", "source_excerpt": "The beta supports CSV export.", "explanation": "Commentary."},
+        ],
+        "coverage_explanation": "Validator finds MANDATE VIOLATED.",
+    }
+
+    mock_eval(direct_vm, leader_false_mandate, validator_mandate_violation)
+    contract.evaluate_request(request_id)
+
+    res = direct_vm.run_validator()
+    assert res == False
+
+
+def test_regression_mismatch_in_later_rule_r2_rejected(direct_vm, direct_deploy, direct_owner, direct_alice):
+    contract = deploy(direct_deploy)
+    workspace_id = create_workspace(contract, direct_vm, direct_owner)
+    agent_id = authorize(contract, direct_vm, direct_owner, workspace_id, direct_alice)
+
+    direct_vm.sender = direct_alice
+    message = "You can export your beta data as a CSV file. Mobile launches next quarter."
+    request_id = contract.submit_action(workspace_id, agent_id, "request-false-r2", message)
+
+    leader_false_r2 = {
+        "conditions": [
+            {"id": "MANDATE", "status": "SATISFIED", "message_excerpt": "You can export your beta data as a CSV file.", "source_excerpt": "approved public factbook", "explanation": "Mandate satisfied."},
+            {"id": "R1", "status": "SATISFIED", "message_excerpt": "CSV file", "source_excerpt": "The beta supports CSV export.", "explanation": "CSV export supported."},
+            {"id": "R2", "status": "SATISFIED", "message_excerpt": "", "source_excerpt": "", "explanation": "Leader falsely marks R2 SATISFIED."},
+            {"id": "R3", "status": "SATISFIED", "message_excerpt": "", "source_excerpt": "", "explanation": "No refunds."},
+        ],
+        "assertions": [
+            {"text": "You can export your beta data as a CSV file.", "support": "SUPPORTED", "source_excerpt": "The beta supports CSV export.", "explanation": "CSV supported."},
+            {"text": "Mobile launches next quarter.", "support": "SUPPORTED", "source_excerpt": "No mobile release date has been announced.", "explanation": "Fake support."}
+        ],
+        "summary": "Leader incorrectly allows R2 violation.",
+    }
+
+    validator_r2_violation = {
+        "valid": True,
+        "conditions": [
+            {"id": "MANDATE", "status": "SATISFIED", "message_excerpt": "You can export your beta data as a CSV file.", "source_excerpt": "approved public factbook", "explanation": "Mandate satisfied."},
+            {"id": "R1", "status": "SATISFIED", "message_excerpt": "CSV file", "source_excerpt": "The beta supports CSV export.", "explanation": "CSV export supported."},
+            {"id": "R2", "status": "VIOLATED", "message_excerpt": "Mobile launches next quarter.", "source_excerpt": "No mobile release date has been announced.", "explanation": "Validator independently finds R2 launch date prohibition VIOLATED."},
+            {"id": "R3", "status": "SATISFIED", "message_excerpt": "", "source_excerpt": "", "explanation": "No refunds."},
+        ],
+        "assertions": [
+            {"text": "You can export your beta data as a CSV file.", "support": "SUPPORTED", "source_excerpt": "The beta supports CSV export.", "explanation": "CSV supported."},
+            {"text": "Mobile launches next quarter.", "support": "SUPPORTED", "source_excerpt": "No mobile release date has been announced.", "explanation": "Launch date unannounced."},
+        ],
+        "coverage_explanation": "Validator independently finds R2 VIOLATED.",
+    }
+
+    mock_eval(direct_vm, leader_false_r2, validator_r2_violation)
+    contract.evaluate_request(request_id)
+
+    res = direct_vm.run_validator()
+    assert res == False
+
+
+def test_regression_omitted_validator_condition_rejected(direct_vm, direct_deploy, direct_owner, direct_alice):
+    contract = deploy(direct_deploy)
+    workspace_id = create_workspace(contract, direct_vm, direct_owner)
+    agent_id = authorize(contract, direct_vm, direct_owner, workspace_id, direct_alice)
+
+    direct_vm.sender = direct_alice
+    message = "You can export your beta data as a CSV file."
+    request_id = contract.submit_action(workspace_id, agent_id, "request-omitted-cond", message)
+
+    leader_resp = allow_response()
+    # Validator omits R2 completely
+    validator_omitted_r2 = {
+        "valid": True,
+        "conditions": [
+            {"id": "MANDATE", "status": "SATISFIED", "message_excerpt": "You can export your beta data as a CSV file.", "source_excerpt": "approved public factbook", "explanation": "Policy requires factbook support."},
+            {"id": "R1", "status": "SATISFIED", "message_excerpt": "CSV file", "source_excerpt": "The beta supports CSV export.", "explanation": "CSV export is supported."},
+            {"id": "R3", "status": "SATISFIED", "message_excerpt": "", "source_excerpt": "", "explanation": "No refund promise is made."},
+        ],
+        "assertions": leader_resp["assertions"],
+        "coverage_explanation": "Validator accidentally omitted R2.",
+    }
+
+    mock_eval(direct_vm, leader_resp, validator_omitted_r2)
+    contract.evaluate_request(request_id)
+
+    res = direct_vm.run_validator()
+    assert res == False
+
+
+def test_regression_duplicate_validator_condition_rejected(direct_vm, direct_deploy, direct_owner, direct_alice):
+    contract = deploy(direct_deploy)
+    workspace_id = create_workspace(contract, direct_vm, direct_owner)
+    agent_id = authorize(contract, direct_vm, direct_owner, workspace_id, direct_alice)
+
+    direct_vm.sender = direct_alice
+    message = "You can export your beta data as a CSV file."
+    request_id = contract.submit_action(workspace_id, agent_id, "request-dup-cond", message)
+
+    leader_resp = allow_response()
+    # Validator duplicates R1 instead of having R2
+    validator_dup_r1 = {
+        "valid": True,
+        "conditions": [
+            {"id": "MANDATE", "status": "SATISFIED", "message_excerpt": "You can export your beta data as a CSV file.", "source_excerpt": "approved public factbook", "explanation": "Policy requires factbook support."},
+            {"id": "R1", "status": "SATISFIED", "message_excerpt": "CSV file", "source_excerpt": "The beta supports CSV export.", "explanation": "CSV export is supported."},
+            {"id": "R1", "status": "SATISFIED", "message_excerpt": "CSV file", "source_excerpt": "The beta supports CSV export.", "explanation": "Duplicate R1."},
+            {"id": "R3", "status": "SATISFIED", "message_excerpt": "", "source_excerpt": "", "explanation": "No refund promise is made."},
+        ],
+        "assertions": leader_resp["assertions"],
+        "coverage_explanation": "Validator has duplicate condition ID.",
+    }
+
+    mock_eval(direct_vm, leader_resp, validator_dup_r1)
+    contract.evaluate_request(request_id)
+
+    res = direct_vm.run_validator()
+    assert res == False
+
+
+def test_legitimate_matching_deny_consensus(direct_vm, direct_deploy, direct_owner, direct_alice):
+    contract = deploy(direct_deploy)
+    workspace_id = create_workspace(contract, direct_vm, direct_owner)
+    agent_id = authorize(contract, direct_vm, direct_owner, workspace_id, direct_alice)
+
+    direct_vm.sender = direct_alice
+    message = "Our mobile app launches next Friday."
+    request_id = contract.submit_action(workspace_id, agent_id, "request-legit-deny", message)
+
+    leader_deny = deny_response()
+    # Validator independently reaches matching DENY
+    validator_deny = {
+        "valid": True,
+        "conditions": [
+            {"id": "MANDATE", "status": "VIOLATED", "message_excerpt": "next Friday", "source_excerpt": "approved public factbook", "explanation": "Invented release date."},
+            {"id": "R1", "status": "SATISFIED", "message_excerpt": "mobile app", "source_excerpt": "A mobile application is under consideration.", "explanation": "Mobile app consideration is supported."},
+            {"id": "R2", "status": "VIOLATED", "message_excerpt": "next Friday", "source_excerpt": "No mobile release date has been announced.", "explanation": "Release date is not supported."},
+            {"id": "R3", "status": "SATISFIED", "message_excerpt": "", "source_excerpt": "", "explanation": "No refund promise is made."},
+        ],
+        "assertions": [
+            {"text": "next Friday", "support": "UNSUPPORTED", "source_excerpt": "No mobile release date has been announced.", "explanation": "No date exists in factbook."}
+        ],
+        "coverage_explanation": "Validator independently agrees on DENY.",
+    }
+
+    mock_eval(direct_vm, leader_deny, validator_deny)
+    contract.evaluate_request(request_id)
+
+    res = direct_vm.run_validator()
+    assert res == True
+
+    req = contract.get_request(request_id)
+    ev = contract.get_evaluation(req["evaluationId"])
+    assert ev["status"] == "DENY"
+    assert req["permitId"] == ""
+    with direct_vm.expect_revert("ready permit required"):
+        contract.publish(request_id)
+
+
+
+def test_regression_leader_false_satisfied_rule_rejected(direct_vm, direct_deploy, direct_owner, direct_alice):
+    contract = deploy(direct_deploy)
+    workspace_id = create_workspace(contract, direct_vm, direct_owner)
+    agent_id = authorize(contract, direct_vm, direct_owner, workspace_id, direct_alice)
+
+    direct_vm.sender = direct_alice
+    # Message makes supported claim "CSV export" but violates R3 "Do not promise refunds or compensation."
+    message = "You can export your beta data as a CSV file. We promise a full refund if not satisfied."
+    request_id = contract.submit_action(workspace_id, agent_id, "request-false-satisfied-r3", message)
+
+    leader_false_satisfied = {
+        "conditions": [
+            {"id": "MANDATE", "status": "SATISFIED", "message_excerpt": "You can export your beta data as a CSV file.", "source_excerpt": "approved public factbook", "explanation": "Factbook supported."},
+            {"id": "R1", "status": "SATISFIED", "message_excerpt": "CSV file", "source_excerpt": "The beta supports CSV export.", "explanation": "CSV export is supported."},
+            {"id": "R2", "status": "SATISFIED", "message_excerpt": "", "source_excerpt": "", "explanation": "No launch date mentioned."},
+            {"id": "R3", "status": "SATISFIED", "message_excerpt": "", "source_excerpt": "", "explanation": "Leader falsely marks refund prohibition SATISFIED."},
+        ],
+        "assertions": [
+            {"text": "You can export your beta data as a CSV file.", "support": "SUPPORTED", "source_excerpt": "The beta supports CSV export.", "explanation": "CSV export supported."},
+            {"text": "We promise a full refund if not satisfied.", "support": "SUPPORTED", "source_excerpt": "Refund requests must be referred to the support team.", "explanation": "Fake support."}
+        ],
+        "summary": "Leader incorrectly allows violating message.",
+    }
+
+    validator_independent_violation = {
+        "valid": True,
+        "conditions": [
+            {"id": "MANDATE", "status": "SATISFIED", "message_excerpt": "You can export your beta data as a CSV file.", "source_excerpt": "approved public factbook", "explanation": "Factbook supported."},
+            {"id": "R1", "status": "SATISFIED", "message_excerpt": "CSV file", "source_excerpt": "The beta supports CSV export.", "explanation": "CSV export is supported."},
+            {"id": "R2", "status": "SATISFIED", "message_excerpt": "", "source_excerpt": "", "explanation": "No launch date mentioned."},
+            {"id": "R3", "status": "VIOLATED", "message_excerpt": "We promise a full refund if not satisfied.", "source_excerpt": "Refund requests must be referred to the support team.", "explanation": "Independent validator finds refund prohibition VIOLATED."},
+        ],
+        "assertions": [
+            {"text": "You can export your beta data as a CSV file.", "support": "SUPPORTED", "source_excerpt": "The beta supports CSV export.", "explanation": "CSV export supported."},
+            {"text": "We promise a full refund if not satisfied.", "support": "SUPPORTED", "source_excerpt": "Refund requests must be referred to the support team.", "explanation": "Support excerpt refers to team."},
+        ],
+        "coverage_explanation": "Validator independently finds R3 VIOLATED.",
+    }
+
+    mock_eval(direct_vm, leader_false_satisfied, validator_independent_violation)
+    contract.evaluate_request(request_id)
+
+    res = direct_vm.run_validator()
+    assert res == False
+
 
 
 def test_bad_three_rule_output_fails_validation(direct_vm, direct_deploy, direct_owner, direct_alice):
